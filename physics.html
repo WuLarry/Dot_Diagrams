@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Physics - Dot Diagrams</title>
+<style>
+.pointsTable {
+   border-spacing: 0px;
+   border-collapse: collapse;
+   table-layout: fixed;
+   min-width: 14em;
+   display: none;
+}
+.pointsTable thead tr {
+   display: block;
+}
+.pointsTable tbody {
+   display: block;
+   overflow: scroll;
+   height: 400px;
+}
+.pointsTable thead td {
+   text-align: center;
+   width: 3em;
+}
+.pointsTable tbody td {
+   text-align: right;
+   width: 3em;
+}
+</style>
+</head>
+<body style="background-color:#eeeeee" >
+<h1>Physics - Dot Diagrams</h1>
+<div>
+  <form>
+     <div>
+         <input id="clear" type="submit" style="width:6em" formaction="javascript:clearEverything()" formnovalidate="formnovalidate" value="Clear">
+         <label>Sampling interval</label>
+         <input id="interval" name="interval" type="number" min="1" max="10000" value="100"> ms
+     </div>
+     <div>
+         <label> Dot size</label>    
+         <input id="pointSize" name="pointSize" type="number" min="1" max="60" value="4"> pixels
+         <input id="activate" type="submit" formaction="javascript:setSpeed()" value="Start" style="width:6em">
+         <input id="stop" type="submit" style="display: none; width:6em" formaction="javascript:stopTimer()" formnovalidate="formnovalidate" value="Stop">
+         <input id="connect" type="submit" style="display: none; width:6em" formaction="javascript:connectPoints()" formnovalidate="formnovalidate" value="Connect">
+     </div>
+  </form>
+</div>
+<table style="border-spacing: 0px;"><tr><td style="padding: 0px"><canvas id="test" width="600" height="400" style="border: 1px solid black;"></canvas></td><td
+style="vertical-align: top;"><table class="pointsTable">
+<thead><tr><td>X</td><td>Y</td><td>dX</td><td>dY</td></tr></thead>
+<tbody id="points"></tbody></table>
+</td></tr>
+<tr><td style="padding: 0px;"><canvas id="progress" width="600" height="50" style="border: 1px solid black; padding: 0px;"></canvas></td><td></td></tr></table>
+<p id="demo"></p>
+<p id="debug"></p>
+
+<script>
+const canvas = document.getElementById("test");
+const ctx = canvas.getContext('2d');
+const pointsList = document.getElementById("points");
+const debug = document.getElementById("debug");
+var pointSize = 4;
+const overshoot = 15;
+var mouseLocation = {clientX:0, clientY:0};
+var step = 0;
+var angleStep = 1;
+var progress = {pos:0, maxdistance:120, element:document.getElementById("progress")};
+var lastPoint;
+var activeTimer;
+var points = [];
+var mouseInCanvas = false;
+
+canvas.addEventListener("mousemove", mouseMove);
+canvas.addEventListener("click", mouseClick);
+canvas.addEventListener("mouseenter", mouseEnter);
+canvas.addEventListener("mouseleave", mouseLeave);
+document.addEventListener("keydown", keyDown);
+
+function clearEverything() {
+    stopTimer();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    var pc = progress.element;
+    var pctx = pc.getContext("2d");
+    pctx.clearRect(0, 0, pc.width, pc.height);
+    lastPoint = null;
+    step = 0;
+    progress.pos = 0;
+    progress.maxdistance = 200;
+    points = [];
+    document.getElementById("connect").style.display = "none";
+    pointsList.innerHTML = "";
+}
+
+function stopTimer() {
+    if (activeTimer != null) {
+        window.clearTimeout(activeTimer);
+        activeTimer = null;
+    }
+    document.getElementById("stop").style.display = "none";
+    document.getElementById("activate").style.display = "inline";
+}
+
+function setSpeed() {
+    newInterval = document.getElementById("interval").value;
+    pointSize = document.getElementById("pointSize").value;
+    if (activeTimer != null) {
+        window.clearTimeout(activeTimer);
+        activeTimer = null;
+    }
+    if (newInterval < 10) {
+        angleStep = 1;
+    } else if (newInterval < 100) {
+        angleStep = Math.trunc(newInterval / 10);
+    } else {
+        angleStep = 10;
+    }
+    activeTimer = window.setInterval(timerTick, newInterval);
+    document.getElementById("activate").style.display = "none";
+    document.getElementById("stop").style.display = "inline";
+    timerTick();
+}
+
+function keyDown(event) {
+    const k = event.key;
+    if (mouseInCanvas) {
+//        debug.innerHTML = "Key: " + k + ".";
+        if (k == "c" || k == "C") {
+            clearEverything();
+        } else if (k == "s" || k == "S"){
+            mouseClick(null);
+        }
+    }
+}
+
+
+function mouseEnter(event) {
+    mouseInCanvas = true;
+}
+
+function mouseLeave(event) {
+    mouseInCanvas = false;
+}
+
+function mouseClick(event) {
+    var btn;
+
+    if (activeTimer == null) {
+        btn = document.getElementById("activate");
+    } else {
+        btn = document.getElementById("stop");
+    }
+    if (btn != null) {
+        btn.click();
+    }
+}
+
+function mouseMove(event) {
+    mouseLocation.clientX = event.clientX;
+    mouseLocation.clientY = event.clientY;
+}
+
+function timerTick() {
+    if (mouseInCanvas) {
+        drawCircle(mouseLocation);
+    }
+}
+
+function getColor(angle) {
+    angle = angle % 360;
+    var V = 1;                  
+    var S = 1;         
+    var C = V * S;
+    var X = C * (1 - Math.abs((angle / 60) % 2 - 1));
+    var m = V - C;
+    var R = 0;
+    var G = 0;
+    var B = 0;
+    if (angle < 60) {
+        R = C;
+        G = X;
+    } else if (angle < 120) {
+        R = X;
+        G = C;
+    } else if (angle < 180) {
+        G = C;
+        B = X;
+    } else if (angle < 240) {
+        G = X;
+        B = C;
+    } else if (angle < 300) {
+        R = X;
+        B = C;
+    } else {
+        R = C;
+        B = X;
+    }
+    R = Math.trunc((R + m) * 255);
+    G = Math.trunc((G + m) * 255);
+    B = Math.trunc((B + m) * 255);
+    return '#' + (R * 65536 + G * 256 + B).toString(16).padStart(6, '0');
+} 
+
+function connectPoints() {
+    var i;
+
+    for (i = 1; i < points.length; i++) {
+        var x1 = points[i - 1].x;
+        var x2 = points[i].x;
+        var y1 = points[i - 1].y;
+        var y2 = points[i].y;
+        var dx = x2 - x1;
+        var dy = y2 - y1;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist != 0) {
+            ctx.beginPath();
+            ctx.lineWidth = 1;
+            var sx = overshoot * dx / dist;
+            var sy = overshoot * dy / dist;
+            x1 -= sx;
+            y1 -= sy;
+            x2 += sx;
+            y2 += sy;
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            var grd = ctx.createLinearGradient(x1, y1, x2, y2);
+            grd.addColorStop(0, points[i - 1].color);
+            grd.addColorStop(1, points[i].color);
+            ctx.strokeStyle = grd;
+            ctx.stroke();
+        }
+    }
+}
+
+function addPoint(x, y) {	
+    x = Math.trunc(x);
+    y = Math.trunc(y);
+    color = getColor(step);
+    points.push({x:x, y:y, color:color});
+    if (points.length == 2) {
+        document.getElementById("connect").style.display = "inline";
+    }
+    ctx.fillStyle = color;
+    step += angleStep;
+
+    ctx.beginPath();
+    ctx.arc(x, y, pointSize, 0, Math.PI * 2, true);
+    ctx.fill();
+    if (lastPoint != null) {
+        var dx = x - lastPoint.x;
+        var dy = y - lastPoint.y;
+        var distance = Math.sqrt(dx * dx + dy * dy);
+        recordProgress(distance, color);
+    }
+    lastPoint = {x:x, y:y};
+    if (false) {
+        var row = pointsList.insertRow();
+        row.insertCell(0).appendChild(document.createTextNode(x.toString()));
+        row.insertCell(1).appendChild(document.createTextNode(y.toString()));
+        var dx = "";
+        var dy = "";
+        if (points.length > 1) {
+            dx = (x - points[points.length - 2].x).toString();
+            dy = (y - points[points.length - 2].y).toString();
+        }
+        row.insertCell(2).appendChild(document.createTextNode(dx));
+        row.insertCell(3).appendChild(document.createTextNode(dy));
+        pointsList.scrollTo(0, pointsList.scrollHeight - pointsList.clientHeight);
+    }
+}
+
+function drawCircle(e) {
+    var x = e.clientX;
+    var y = e.clientY;
+    var rect = canvas.getBoundingClientRect();
+    x = x - rect.left;
+    y = y - rect.top;
+    if (x < 0 || y < 0) {
+        return;
+    }
+    addPoint(x, y);
+    var coor = "Coordinates: (" + x + "," + y + ")";
+    document.getElementById("demo").innerHTML = coor;
+}
+
+function recordProgress(distance, color) {
+   if (distance > progress.maxdistance) {
+   //   progress.maxdistance = distance;
+   }
+   var y;
+   if (distance < 1) {
+       y = 0;
+   } else {
+       y = Math.log(distance) / 6.90775527898 * progress.element.clientHeight + 1;
+   }
+   var ctx = progress.element.getContext("2d");
+   //ctx.globalAlpha = 1.0;
+   ctx.lineWidth = 1;
+   clearPos = (progress.pos + 10) % progress.element.width + 0.5;
+   markerPos = (progress.pos + 1) % progress.element.width + 0.5;
+   drawPos = progress.pos % progress.element.width + 0.5;
+   ctx.beginPath();
+   ctx.strokeStyle = "#eeeeee";
+   ctx.moveTo(clearPos, 0.5);
+   ctx.lineTo(clearPos, progress.element.height + 0.5);
+   ctx.stroke();
+   ctx.beginPath();
+   ctx.strokeStyle = "#ffffff";
+   ctx.moveTo(markerPos, 0.5);
+   ctx.lineTo(markerPos, progress.element.height + 0.5);
+   ctx.stroke();
+   ctx.beginPath();
+   ctx.lineWidth = 1;
+   ctx.strokeStyle = color;
+   ctx.moveTo(drawPos, progress.element.height + 0.5);
+   ctx.lineTo(drawPos, progress.element.height - y - 0.5);
+   ctx.stroke();
+   progress.pos += 1;
+   //debug.innerHTML = "Distance: " + distance.toString() + ", Y: " + y.toString() + ", DrawPos: " + drawPos.toString();
+}
+</script>
+</body>
+</html>
