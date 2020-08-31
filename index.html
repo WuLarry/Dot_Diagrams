@@ -26,6 +26,12 @@
    text-align: right;
    width: 3em;
 }
+.credit {
+   width: 100%;
+   border-top: solid 1px;
+   text-align: center;
+   font-size: x-small;
+}
 </style>
 </head>
 <body style="background-color:#eeeeee; width: 100%; margin: 0;" onload="pageLoaded()">
@@ -92,6 +98,7 @@ var lastPoint;
 var activeTimer;
 var points = [];
 var mouseInCanvas = false;
+var activeTouch = null;
 
 canvas.addEventListener("mousemove", mouseMove);
 canvas.addEventListener("click", mouseClick);
@@ -99,6 +106,10 @@ canvas.addEventListener("mouseenter", mouseEnter);
 canvas.addEventListener("mouseleave", mouseLeave);
 document.addEventListener("keydown", keyDown);
 window.addEventListener("resize", pageResized);
+canvas.addEventListener("touchstart", touchStart);
+canvas.addEventListener("touchend", touchEnd);
+canvas.addEventListener("touchmove", touchMove);
+canvas.addEventListener("touchcancel", touchEnd);
 
 function clearEverything() {
     stopTimer();
@@ -188,6 +199,45 @@ function mouseMove(event) {
     mouseLocation.clientY = event.clientY;
 }
 
+function touchStart(event) {
+    event.preventDefault();
+    if (activeTouch == null) {
+       activeTouch = event.changedTouches[0].identifier;
+       // debug.innerHTML = "Active touch: " + activeTouch;
+       mouseLocation.clientX = event.changedTouches[0].clientX;
+       mouseLocation.clientY = event.changedTouches[0].clientY;
+       mouseEnter(null);
+    }
+}
+
+function touchEnd(event) {
+    event.preventDefault();
+    if (activeTouch != null) {
+       var i;
+
+       for (i = 0; i < event.changedTouches.length; i++) {
+           if (activeTouch == event.changedTouches[i].identifier) {
+               mouseLeave(null);
+               activeTouch = null;
+               // debug.innerHTML = "Active touch is not present";
+               break;
+           }
+       }
+    }
+}
+
+function touchMove(event) {
+    event.preventDefault();
+    var i;
+
+    for (i = 0; i < event.changedTouches.length; i++) {
+        if (activeTouch == event.changedTouches[i].identifier) {
+            mouseLocation.clientX = event.changedTouches[i].clientX;
+            mouseLocation.clientY = event.changedTouches[i].clientY;
+            break;
+        }
+    }
+}
 function timerTick() {
     if (mouseInCanvas) {
         drawCircle(mouseLocation);
@@ -320,8 +370,8 @@ function drawCircle(e) {
         return;
     }
     addPoint(x, y);
-    var coor = "Coordinates: (" + x + "," + y + ")";
-    document.getElementById("demo").innerHTML = coor;
+//    var coor = "Coordinates: (" + x + "," + y + ")";
+//    document.getElementById("demo").innerHTML = coor;
 }
 
 function getProgressY(distance) {
@@ -390,5 +440,6 @@ function recordProgress(distance, color) {
    //debug.innerHTML = "Distance: " + distance.toString() + ", Y: " + y.toString() + ", DrawPos: " + drawPos.toString();
 }
 </script>
+<div class="credit">Created by Lawrence Wu for Physics</div>
 </body>
 </html>
