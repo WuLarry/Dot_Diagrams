@@ -341,7 +341,7 @@ function addPoint(x, y) {
         distance = Math.sqrt(dx * dx + dy * dy);
     }
     points.push({x:x, y:y, color:color, distance:distance});
-    recordProgress(distance, color);
+    recordProgress(points.length - 1);
         
     lastPoint = {x:x, y:y};
     if (false) {
@@ -419,10 +419,12 @@ function redrawProgress() {
     progress.pos = cpos;
 }
 
-function recordProgress(distance, color) {
+function recordProgress(index) {
+   distance = points[index].distance;
    if (distance > progress.maxdistance) {
        progress.maxdistance = distance;
-       redrawProgress();
+       redrawProgress();  // This draws also last element.
+       return;
    }
    var y = getProgressY(distance);
    var ctx = progress.element.getContext("2d");
@@ -434,7 +436,7 @@ function recordProgress(distance, color) {
    ctx.fillRect(clearPos * progress.step, 0.5, progress.step + 1, progress.element.height);
    ctx.fillStyle = "#ffffff";
    ctx.fillRect(drawPos * progress.step, 0.5, progress.step * 2 + 1, progress.element.height);
-   ctx.fillStyle = color;
+   ctx.fillStyle = points[index].color;
    ctx.fillRect(drawPos * progress.step, progress.element.height - y + 0.5, progress.step + 1, y);
    progress.pos++;
    //debug.innerHTML = "Distance: " + distance.toString() + ", Y: " + y.toString() + ", DrawPos: " + drawPos.toString();
